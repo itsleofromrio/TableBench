@@ -1,18 +1,17 @@
-
-
-
-
 DATA_PATH='data/v2/test'
 
+# Change to FLAN-T5-base
+MODEL_DIR='google/flan-t5-base'
 
+# Run this before executing your script
+export PYTHONPATH=$PYTHONPATH:$(pwd)
 
-
-MODEL_DIR='ckpt/llama-3-1-8b-v2'
-python vllm_infer.py \
+python inference/infer.py \
     --data_path $DATA_PATH \
     --base_model $MODEL_DIR \
-    --task 'tablebench'  \
+    --task 'tablebench' \
     --temperature 0 \
-    --sample_n 1 
+    --sample_n 1 \
+    --outdir "outputs/flan-t5"
 
 
