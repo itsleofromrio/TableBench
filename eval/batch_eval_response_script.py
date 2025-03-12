@@ -1,3 +1,12 @@
+import os
+import json
+import sys
+from pathlib import Path
+
+# Add the project root to the Python path
+project_root = str(Path(__file__).parent.parent)
+sys.path.append(project_root)
+
 from utils.file_util import read_json_file, write_json_to_file, iter_file_from_dir
 import os
 from metrics.qa_metrics import QAMetric
@@ -311,9 +320,12 @@ def eval_by_overall(categoried_llm_inference_results, qa_metric, metric_name='RO
 
 
 if __name__ == '__main__':
-    exp_version = '20240730_hf'
-    PARSED_RUSULT_DIR = f'{PROJ_ROOT}/experiment_results/{exp_version}/parsed_results'
-    EVAL_RESULT_DIR = f'{PROJ_ROOT}/experiment_results/{exp_version}/evaluation_results'
+    PARSED_RUSULT_DIR = '/teamspace/studios/this_studio/TableBench/data/v2/results/parsed_results'
+    EVAL_RESULT_DIR = '/teamspace/studios/this_studio/TableBench/data/v2/results/evaluation_results'
+    
+    # Criar diretórios automaticamente
+    os.makedirs(PARSED_RUSULT_DIR, exist_ok=True)
+    os.makedirs(EVAL_RESULT_DIR, exist_ok=True)
     metric_name = 'ROUGE-L'
     eval_models = []
 

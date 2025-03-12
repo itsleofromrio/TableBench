@@ -2,24 +2,24 @@
 import os
 import sys
 
-from datasets import load_metric,list_metrics
-from metrics.base_metric import BaseMetric
+import evaluate
+from typing import List, Dict, Any
+import numpy as np
 import re
 import string
 from collections import Counter
-import evaluate
 
 sys.path.append(os.path.join(os.getcwd()))  # noqa: E402 # isort:skip
 
 
 def show_all_metrics():
-    metrics_list = list_metrics()
+    metrics_list = evaluate.list_evaluation_modules()
     for metric in metrics_list:
         print(metric)
 
 
 def show_detail_metric(metric_name):
-    metric = load_metric(metric_name)
+    metric = evaluate.load(metric_name)
     print(metric)
 
 
@@ -65,63 +65,47 @@ def word_level_f1_score(references,predictions):
     return f1
 
 
-class QAMetric(BaseMetric):
-
-    def __init__(self, **kwargs):
-        self.em = evaluate.load('exact_match')
+class QAMetric:
+    def __init__(self):
         self.rouge = evaluate.load('rouge')
+        self.exact_match = evaluate.load('exact_match')
+        self.f1 = evaluate.load('f1')
         self.sacrebleu = evaluate.load('sacrebleu')
-        self.bertscore = evaluate.load('bertscore')
-        print(f'Successfully loaded F1, EM, ROUGE, SacreBLEU,BERTScore')
-        self.count_blank=True
-        # self.meteor = evaluate.load('meteor')
-    
-    def prepsocess(self,references,predictions):
-        '''
-        Preprocess predictions and references
-        '''
-        processed_predictions = []
-        processed_references = []
-        for i in range(len(predictions)):
-            prediction = predictions[i]
-            reference = references[i]
-            # normalize prediction and reference
-            prediction = normalize_answer(prediction)
-            reference = normalize_answer(reference)
-            if len(prediction) == 0:
-                if self.count_blank:
-                    prediction = '#'
-                    processed_predictions.append(prediction)
-                    processed_references.append(reference)
-            else:
-                processed_predictions.append(prediction)
-                processed_references.append(reference)
-        predictions = processed_predictions
-        references = processed_references
-        return references,predictions
 
+    def compute(self, predictions: List[str], references: List[str]) -> Dict[str, float]:
+        # Ensure predictions and references are lists of strings
+        predictions = [str(p) if p is not None else "" for p in predictions]
+        references = [str(r) if r is not None else "" for r in references]
 
-    def compute(self,references,predictions):
-        '''
-        Support Mtrics: F1, EM, ROUGE-L, SacreBLEU, Meteor
-        '''
-        metric_scores = {}
-        references,predictions = self.prepsocess(references,predictions)
+        # Calculate ROUGE scores
+        rouge_scores = self.rouge.compute(
+            predictions=predictions,
+            references=references,
+            use_aggregator=True
+        )
+        
+        # Calculate Exact Match score
+        em_score = self.exact_match.compute(
+            predictions=predictions,
+            references=references
+        )
 
-        sys.setrecursionlimit(8735 * 2080 + 10)
-        # calculate F1,EM, ROUGE-L, SacreBLEU, Meteor
-        f1_score = word_level_f1_score(references=references, predictions=predictions)
-        em_score = self.em.compute(references=references, predictions=predictions)
-        rouge_score = self.rouge.compute(references=references, predictions=predictions)
-        sacrebleu_score = self.sacrebleu.compute(
-            references=references, predictions=predictions)
+        # Calculate F1 score
+        f1_score = self.f1.compute(
+            predictions=predictions,
+            references=references
+        )
 
-        metric_scores = {
-            'F1': round(f1_score*100, 2),
-            'EM': round(em_score['exact_match']*100, 2),
-            'ROUGE-L': round(rouge_score['rougeL']*100, 2),
-            'SacreBLEU': round(sacrebleu_score['score'], 2),
+        # Calculate BLEU score
+        bleu_score = self.sacrebleu.compute(
+            predictions=predictions,
+            references=[[r] for r in references]
+        )
+
+        return {
+            'ROUGE-L': round(rouge_scores['rougeL'] * 100, 2),
+            'EM': round(em_score['exact_match'] * 100, 2),
+            'F1': round(f1_score['f1'] * 100, 2),
+            'SacreBLEU': round(bleu_score['score'], 2)
         }
-
-        return metric_scores
 
